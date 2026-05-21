@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>kintone アプリマップ｜株式会社センチュリーダイソー</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+    background: #f5f4f0;
+    color: #1a1a18;
+    min-height: 100vh;
+    padding: 32px 16px 64px;
+  }
+  .container { max-width: 860px; margin: 0 auto; }
+
+  /* Header */
+  .header { margin-bottom: 32px; }
+  .header h1 { font-size: 20px; font-weight: 600; color: #1a1a18; margin-bottom: 4px; }
+  .header p { font-size: 13px; color: #73726c; }
+  .hint { font-size: 12px; color: #888780; margin-bottom: 24px; background: #fff; border: 0.5px solid #d3d1c7; border-radius: 8px; padding: 8px 14px; display: inline-block; }
+
+  /* Group */
+  .group { margin-bottom: 28px; }
+  .group-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .group-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .group-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #888780; }
+  .apps-row { display: flex; flex-wrap: wrap; gap: 10px; }
+
+  /* App card */
+  .app-card {
+    background: #fff;
+    border: 0.5px solid #d3d1c7;
+    border-radius: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    width: 172px;
+    transition: border-color 0.15s, transform 0.1s;
+    user-select: none;
+  }
+  .app-card:hover { border-color: #888780; transform: translateY(-1px); }
+  .app-card:active { transform: translateY(0); }
+  .app-card.paused { opacity: 0.45; }
+  .app-name { font-size: 14px; font-weight: 600; color: #1a1a18; margin: 4px 0 2px; }
+  .app-sub { font-size: 11px; color: #888780; }
+
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .badge-active { background: #d4f0e4; color: #0d6e44; }
+  .badge-paused { background: #e8e6df; color: #73726c; }
+  .badge-master { background: #fde9b8; color: #854f0b; }
+
+  /* Modal */
+  .backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.38);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .backdrop.open { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 14px;
+    border: 0.5px solid #d3d1c7;
+    padding: 24px 28px;
+    max-width: 460px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    position: relative;
+    animation: fadeUp 0.18s ease;
+  }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  .modal-close {
+    position: absolute; top: 16px; right: 18px;
+    background: none; border: none; cursor: pointer;
+    font-size: 20px; color: #888780; line-height: 1;
+    width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    transition: background 0.1s;
+  }
+  .modal-close:hover { background: #f1efe8; }
+  .modal h2 { font-size: 17px; font-weight: 600; color: #1a1a18; margin-bottom: 4px; padding-right: 32px; }
+  .modal-purpose { font-size: 13px; color: #73726c; margin-bottom: 16px; line-height: 1.6; }
+
+  .rule-block { margin-bottom: 14px; }
+  .rule-label {
+    font-size: 10px; font-weight: 700; color: #888780;
+    text-transform: uppercase; letter-spacing: 0.09em;
+    margin-bottom: 5px;
+  }
+  .rule-item {
+    font-size: 13px; color: #2c2c2a;
+    line-height: 1.65;
+    padding: 7px 12px;
+    background: #f5f4f0;
+    border-radius: 7px;
+    margin-bottom: 4px;
+  }
+  .rule-item.warn {
+    background: #fde9b8;
+    color: #633806;
+    font-weight: 500;
+  }
+  .warn-icon { margin-right: 4px; }
+
+  /* Footer */
+  .footer { margin-top: 40px; font-size: 11px; color: #b4b2a9; text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>kintone アプリマップ</h1>
+    <p>株式会社センチュリーダイソー 営業推進部</p>
+  </div>
+  <div class="hint">📌 各アプリをクリックすると、入力タイミング・ルール・注意点を確認できます</div>
+
+  <div class="group">
+    <div class="group-header">
+      <div class="group-dot" style="background:#1D9E75"></div>
+      <div class="group-title">日報入力グループ</div>
+    </div>
+    <div class="apps-row" id="row-daily"></div>
+  </div>
+
+  <div class="group">
+    <div class="group-header">
+      <div class="group-dot" style="background:#BA7517"></div>
+      <div class="group-title">マスターアプリ（編集不可・追加修正は藤原・大和まで）</div>
+    </div>
+    <div class="apps-row" id="row-master"></div>
+  </div>
+
+  <div class="group">
+    <div class="group-header">
+      <div class="group-dot" style="background:#378ADD"></div>
+      <div class="group-title">サブリース物件</div>
+    </div>
+    <div class="apps-row" id="row-sub"></div>
+  </div>
+
+  <div class="group">
+    <div class="group-header">
+      <div class="group-dot" style="background:#888780"></div>
+      <div class="group-title">その他</div>
+    </div>
+    <div class="apps-row" id="row-other"></div>
+  </div>
+
+  <div class="group">
+    <div class="group-header">
+      <div class="group-dot" style="background:#B4B2A9"></div>
+      <div class="group-title">運用休止中</div>
+    </div>
+    <div class="apps-row" id="row-paused"></div>
+  </div>
+
+  <div class="footer">不明点・修正依頼は藤原まで｜最終更新：2026年5月</div>
+</div>
+
+<div class="backdrop" id="backdrop">
+  <div class="modal" id="modal">
+    <button class="modal-close" id="closeBtn">✕</button>
+    <h2 id="p-name"></h2>
+    <p class="modal-purpose" id="p-purpose"></p>
+    <div id="p-body"></div>
+  </div>
+</div>
+
+<script>
+const apps = [
+  {
+    id:"diary", name:"日報", group:"daily", status:"active",
+    who:"営業全員",
+    purpose:"日々の活動を件名ごとに記録・集計。KPIに直結。",
+    timing:"活動のたびに1件1件入力（まとめ入力禁止）",
+    rules:[
+      "物件・オーナー/テナント・区画はすべて必須（紐づかない場合は「その他」を選択）",
+      "件名は活動1件につき1レコード。複数件をまとめて入力しない",
+      "KPI集計対象の件名：【仲介】仲介手数料入金確認 / 【仲介】案内（企業単位）/ 【仕入】内覧（初回のみ）/ 【管理】工事受注・見積提出 など",
+      "「【仲介】仲介手数料入金確認」「業者付け契約金入金確認」は区画ステータス更新のトリガー。絶対に入力漏れ禁止",
+      "「解約通知書受領」の件名で区画が「募集中（入居中）」に切り替わる",
+      "問合せ対応の経過は問合せアプリと必ず紐づけて入力",
+    ],
+    warn:"入力漏れ＝KPI・区画ステータスの誤表示につながる"
+  },
+  {
+    id:"inquiry", name:"問合せ", group:"daily", status:"active",
+    who:"営業・事務",
+    purpose:"オーナー・テナントからのクレームや要望を一元管理・進捗見える化",
+    timing:"問合せを受けたその日のうちに登録",
+    rules:[
+      "登録後、日報アプリと必ず紐づけて経過を記録する",
+      "期限：受付日より1か月後の日付を入力",
+      "対応完了時は対応状況を「完了」に変更すること",
+      "週次会議での進捗確認に使用（スプレッドシート不要）",
+    ],
+    warn:null
+  },
+  {
+    id:"ippan", name:"一般仲介", group:"daily", status:"active",
+    who:"営業",
+    purpose:"一般仲介案件（賃貸・売買）の申請〜書類・帳票管理まで一元完結",
+    timing:"内覧（案内）後にレコード作成",
+    rules:[
+      "案件化した時点（内覧後）で必ず登録。SBは含まない",
+      "申請はキントーンで行う（NIコラボ不要）",
+      "承認完了後はレコード編集不可。修正は「再申請」ボタンを使う",
+      "押印原本が必要な場合：備考欄に「押印原本が必要」と記載する",
+      "取引報告書・請求書はキントーンから出力（修正した場合は旧データを手動削除）",
+      "成立日の入力は事務側が行う（営業は入力しない）",
+    ],
+    warn:"承認完了後に通知が届いたら、事務が押印済み請求書を出力する"
+  },
+  {
+    id:"uriage", name:"売上見込", group:"daily", status:"active",
+    who:"営業",
+    purpose:"月別売上見込を登録し、クロス集計表で営業別・月別に管理",
+    timing:"月初〜月末にかけて随時入力。月末にステータス確定",
+    rules:[
+      "見込みが0円の月も必ずレコードを作成する（作成しないとクロス集計表に月が表示されない）",
+      "入金予定日／完工予定日は「売上計上月の月内の日付」を入力",
+      "ステータス：「見込」→「確定」または「失注」へ月末までに変更",
+    ],
+    warn:"0円でもレコード未作成→その月がクロス集計表に表示されない"
+  },
+  {
+    id:"torihiki", name:"取引先情報", group:"master", status:"active",
+    who:"全員（閲覧）",
+    purpose:"オーナー・テナントのマスタ情報。SFから移行済み",
+    timing:"新規取引先が発生したタイミングで登録依頼",
+    rules:[
+      "追加・修正は藤原・大和まで依頼",
+      "取引先名：正式名称（例：株式会社大倉）",
+      "取引先略称：会社名＋物件略称（例：株式会社大倉/埼玉50（テナント））",
+      "所在地：住居表示の正式表記（例：五丁目３番５号）",
+    ],
+    warn:null
+  },
+  {
+    id:"kukaku", name:"区画管理", group:"master", status:"active",
+    who:"全員（閲覧）",
+    purpose:"区画の募集ステータスを管理。トップ画面の募集状況に直結",
+    timing:"ステータスは自動連動（手動変更原則禁止）",
+    rules:[
+      "①募集中（入居中）→日報「解約通知書受領」入力の翌日",
+      "②募集中（空室）→解約アプリ「解約日」通過後",
+      "③成約済み（入居前）→日報「仲介手数料入金確認」または「業者付け契約金入金確認」入力の翌日",
+      "④入居中→新規テナント契約アプリ「契約期間（始期）」通過後",
+      "追加・修正は藤原・大和まで依頼",
+    ],
+    warn:"入力ミス＝トップ画面の募集状況ズレ。正確な日報入力が必須"
+  },
+  {
+    id:"bukken", name:"物件管理", group:"master", status:"active",
+    who:"全員（閲覧）",
+    purpose:"物件マスタ情報の管理",
+    timing:"物件情報の変更時に依頼",
+    rules:[
+      "追加・修正は藤原・大和まで依頼",
+    ],
+    warn:null
+  },
+  {
+    id:"koushin", name:"契約更新", group:"sub", status:"active",
+    who:"営業・事務",
+    purpose:"サブリース契約の更新手続き・更新通知〜合意書〜請求書まで対応",
+    timing:"更新成立日が確定したタイミングで入力",
+    rules:[
+      "更新成立日の入力は営業側が行う",
+      "【更新料あり】更新料入金日を入力",
+      "【更新料なし】更新申込書受領日を入力",
+      "「更新成立日未成立」一覧で未入力レコードを確認し、会議時に報告",
+      "更新成立日入力後→契約情報アプリに新レコードが自動作成される",
+    ],
+    warn:null
+  },
+  {
+    id:"kaiyaku", name:"解約精算", group:"sub", status:"active",
+    who:"営業・事務",
+    purpose:"サブリース解約の受付〜解約通知書・清算書まで対応",
+    timing:"解約通告を受けたタイミングでレコード作成→解約通知書を発行",
+    rules:[
+      "解約通告を受けたらすぐにレコードを作成し、解約通知書を発行する",
+      "解約通告日の基準は書面提出日（口頭通告日は起算にならない）",
+      "解約日を過ぎると契約情報アプリのステータスが「解約済み」に自動変更",
+      "解約日が正確でないと区画ステータスが正しく反映されない",
+    ],
+    warn:"口頭で通告を受けた時点でレコードを作成するが、解約通告日の起算は書面日付。月末前後は特に注意"
+  },
+  {
+    id:"ag", name:"AG用", group:"other", status:"active",
+    who:"AG担当者",
+    purpose:"AG（代理店）関連業務の管理",
+    timing:"AG業務発生時",
+    rules:[
+      "詳細ルールは担当者に確認",
+    ],
+    warn:null
+  },
+  {
+    id:"keiyaku", name:"契約情報", group:"paused", status:"paused",
+    who:"（運用休止中）",
+    purpose:"サブリーステナントの契約情報一元管理。ステータス「契約中」が現行契約",
+    timing:"現在は藤原が入力対応",
+    rules:[
+      "現在は入力STOP（新規契約の書類出力は停止中）",
+      "テナント情報の登録のみ継続（更新・解約のために必要）",
+      "東京・埼玉・福岡支店は従来通り書類を本社へ送付",
+      "「契約期日確認（現行契約一覧）」一覧で現行契約を確認できる",
+    ],
+    warn:"再開時期は別途案内予定"
+  },
+  {
+    id:"seikyu", name:"請求書書類", group:"paused", status:"paused",
+    who:"（運用休止中）",
+    purpose:"請求書・書類の出力管理",
+    timing:"現在停止中",
+    rules:[
+      "不具合修正対応中につき一時停止",
+      "再開まで従来のフォーマットで作成",
+    ],
+    warn:"再開時期は別途案内予定"
+  },
+  {
+    id:"koji1", name:"工事管理", group:"paused", status:"paused",
+    who:"（未実装）", purpose:"工事案件の管理", timing:"今後構築予定",
+    rules:["現在未実装。今後整備予定"], warn:null
+  },
+  {
+    id:"koji2", name:"工事見積", group:"paused", status:"paused",
+    who:"（未実装）", purpose:"工事見積の管理", timing:"今後構築予定",
+    rules:["現在未実装。今後整備予定"], warn:null
+  },
+  {
+    id:"koji3", name:"工事仕入", group:"paused", status:"paused",
+    who:"（未実装）", purpose:"工事仕入の管理", timing:"今後構築予定",
+    rules:["現在未実装。今後整備予定"], warn:null
+  },
+  {
+    id:"koji4", name:"工事請求", group:"paused", status:"paused",
+    who:"（未実装）", purpose:"工事請求の管理", timing:"今後構築予定",
+    rules:["現在未実装。今後整備予定"], warn:null
+  },
+];
+
+const groupMap = {
+  daily:"row-daily", master:"row-master", sub:"row-sub", other:"row-other", paused:"row-paused"
+};
+
+function badgeHTML(a) {
+  if(a.group==="master") return `<span class="badge badge-master">編集不可</span>`;
+  if(a.status==="paused") return `<span class="badge badge-paused">休止中</span>`;
+  return `<span class="badge badge-active">運用中</span>`;
+}
+
+apps.forEach(a => {
+  const row = document.getElementById(groupMap[a.group]);
+  if(!row) return;
+  const card = document.createElement("div");
+  card.className = "app-card" + (a.status==="paused" ? " paused" : "");
+  card.innerHTML = `${badgeHTML(a)}<div class="app-name">${a.name}</div><div class="app-sub">${a.who}</div>`;
+  card.addEventListener("click", () => openPanel(a));
+  row.appendChild(card);
+});
+
+function openPanel(a) {
+  document.getElementById("p-name").textContent = a.name;
+  document.getElementById("p-purpose").textContent = a.purpose;
+  let html = `<div class="rule-block"><div class="rule-label">入力タイミング</div><div class="rule-item">${a.timing}</div></div>`;
+  html += `<div class="rule-block"><div class="rule-label">ルール・注意点</div>`;
+  a.rules.forEach(r => { html += `<div class="rule-item">${r}</div>`; });
+  html += `</div>`;
+  if(a.warn) {
+    html += `<div class="rule-block"><div class="rule-label">⚠ 特に注意</div><div class="rule-item warn"><span class="warn-icon">⚠</span>${a.warn}</div></div>`;
+  }
+  document.getElementById("p-body").innerHTML = html;
+  document.getElementById("backdrop").classList.add("open");
+}
+
+function closeAll() {
+  document.getElementById("backdrop").classList.remove("open");
+}
+
+document.getElementById("closeBtn").addEventListener("click", closeAll);
+document.getElementById("backdrop").addEventListener("click", function(e) {
+  if(e.target === this) closeAll();
+});
+document.addEventListener("keydown", function(e) {
+  if(e.key === "Escape") closeAll();
+});
+</script>
+</body>
+</html>
